@@ -2,7 +2,7 @@ package lint
 
 import (
 	"testing"
-	
+
 	"github.com/EdgarOrtegaRamirez/markdownforge/internal/parser"
 )
 
@@ -13,7 +13,7 @@ func TestLintHeadingLevels(t *testing.T) {
 	doc := parser.Parse(source)
 	linter := NewLinter()
 	issues := linter.Lint(doc)
-	
+
 	found := false
 	for _, issue := range issues {
 		if issue.Rule == "heading-level" {
@@ -31,7 +31,7 @@ func TestLintTrailingSpace(t *testing.T) {
 	doc := parser.Parse(source)
 	linter := NewLinter()
 	issues := linter.Lint(doc)
-	
+
 	found := false
 	for _, issue := range issues {
 		if issue.Rule == "trailing-space" {
@@ -49,7 +49,7 @@ func TestLintMultipleBlanks(t *testing.T) {
 	doc := parser.Parse(source)
 	linter := NewLinter()
 	issues := linter.Lint(doc)
-	
+
 	found := false
 	for _, issue := range issues {
 		if issue.Rule == "multiple-blanks" {
@@ -67,7 +67,7 @@ func TestLintHeadingPunctuation(t *testing.T) {
 	doc := parser.Parse(source)
 	linter := NewLinter()
 	issues := linter.Lint(doc)
-	
+
 	count := 0
 	for _, issue := range issues {
 		if issue.Rule == "heading-punctuation" {
@@ -91,7 +91,7 @@ More content.
 	doc := parser.Parse(source)
 	linter := NewLinter()
 	issues := linter.Lint(doc)
-	
+
 	// Should only have info-level issues, no warnings
 	for _, issue := range issues {
 		if issue.Severity == SeverityWarning {
@@ -107,7 +107,7 @@ func TestSummary(t *testing.T) {
 		{Severity: SeverityWarning},
 		{Severity: SeverityInfo},
 	}
-	
+
 	errors, warnings, infos := Summary(issues)
 	if errors != 1 {
 		t.Errorf("expected 1 error, got %d", errors)
@@ -125,7 +125,7 @@ func TestCustomRule(t *testing.T) {
 `
 	doc := parser.Parse(source)
 	linter := NewLinter()
-	
+
 	linter.AddRule(Rule{
 		Name:        "test-rule",
 		Description: "Test rule",
@@ -134,7 +134,7 @@ func TestCustomRule(t *testing.T) {
 			return []Issue{{Message: "custom issue", Rule: "test-rule"}}
 		},
 	})
-	
+
 	issues := linter.Lint(doc)
 	found := false
 	for _, issue := range issues {

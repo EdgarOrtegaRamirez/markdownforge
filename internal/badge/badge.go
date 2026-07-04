@@ -44,8 +44,8 @@ func (b *Badge) URL() string {
 	label = strings.ReplaceAll(label, "_", "__")
 	value := strings.ReplaceAll(b.Value, "-", "--")
 	value = strings.ReplaceAll(value, "_", "__")
-	
-	return fmt.Sprintf("https://img.shields.io/badge/%s-%s-%s", 
+
+	return fmt.Sprintf("https://img.shields.io/badge/%s-%s-%s",
 		urlEncode(label), urlEncode(value), b.Color)
 }
 
@@ -102,7 +102,7 @@ func urlEncode(s string) string {
 // GenerateProjectBadges creates common project badges.
 func GenerateProjectBadges(name, license, language string) *BadgeSet {
 	bs := NewBadgeSet()
-	
+
 	if name != "" {
 		bs.Add(NewBadge("name", name, ColorBlue))
 	}
@@ -112,14 +112,14 @@ func GenerateProjectBadges(name, license, language string) *BadgeSet {
 	if language != "" {
 		bs.Add(NewBadge("language", language, ColorBlue))
 	}
-	
+
 	return bs
 }
 
 // GenerateStatusBadges creates status/quality badges.
 func GenerateStatusBadges(tests, lint, coverage string) *BadgeSet {
 	bs := NewBadgeSet()
-	
+
 	if tests != "" {
 		color := ColorBrightGreen
 		if tests == "failing" {
@@ -137,6 +137,6 @@ func GenerateStatusBadges(tests, lint, coverage string) *BadgeSet {
 	if coverage != "" {
 		bs.Add(NewBadge("coverage", coverage, ColorGreen))
 	}
-	
+
 	return bs
 }

@@ -5,25 +5,25 @@ import (
 	"fmt"
 	"strings"
 	"time"
-	
+
 	"github.com/EdgarOrtegaRamirez/markdownforge/internal/parser"
 )
 
 // Stats holds document statistics.
 type Stats struct {
-	WordCount      int
-	CharacterCount int
-	LineCount      int
-	ParagraphCount int
-	HeadingCount   int
-	CodeBlockCount int
-	LinkCount      int
-	ImageCount     int
-	TableCount     int
-	ListCount      int
+	WordCount       int
+	CharacterCount  int
+	LineCount       int
+	ParagraphCount  int
+	HeadingCount    int
+	CodeBlockCount  int
+	LinkCount       int
+	ImageCount      int
+	TableCount      int
+	ListCount       int
 	BlockquoteCount int
-	ReadingTime    time.Duration
-	ReadingTimeStr string
+	ReadingTime     time.Duration
+	ReadingTimeStr  string
 }
 
 // Analyze computes statistics for a parsed document.
@@ -31,17 +31,17 @@ func Analyze(doc *parser.Document) *Stats {
 	stats := &Stats{
 		LineCount: len(doc.Lines),
 	}
-	
+
 	// Count characters (including newlines)
 	for _, line := range doc.Lines {
 		stats.CharacterCount += len(line) + 1 // +1 for newline
 	}
-	
+
 	// Count words
 	fullText := strings.Join(doc.Lines, " ")
 	words := strings.Fields(fullText)
 	stats.WordCount = len(words)
-	
+
 	// Count blocks by type
 	for _, block := range doc.Blocks {
 		switch block.Type {
@@ -57,17 +57,17 @@ func Analyze(doc *parser.Document) *Stats {
 			stats.BlockquoteCount++
 		}
 	}
-	
+
 	// Count headings, links, images
 	stats.HeadingCount = len(doc.Headings)
 	stats.LinkCount = len(doc.Links)
 	stats.ImageCount = len(doc.Images)
-	
+
 	// Calculate reading time (average 200 words per minute)
 	minutes := float64(stats.WordCount) / 200.0
 	stats.ReadingTime = time.Duration(minutes * float64(time.Minute))
 	stats.ReadingTimeStr = formatDuration(stats.ReadingTime)
-	
+
 	return stats
 }
 

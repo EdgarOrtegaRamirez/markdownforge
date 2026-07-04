@@ -5,9 +5,9 @@ import (
 	"bytes"
 	"fmt"
 	"strings"
-	
-	"github.com/yuin/goldmark"
+
 	"github.com/EdgarOrtegaRamirez/markdownforge/internal/parser"
+	"github.com/yuin/goldmark"
 )
 
 // Converter converts Markdown to HTML.
@@ -35,7 +35,7 @@ func (c *Converter) ToHTML(source string) (string, error) {
 func (c *Converter) ToHTMLFromDoc(doc *parser.Document) string {
 	var sb strings.Builder
 	sb.WriteString("<article>\n")
-	
+
 	// Use root children to iterate all blocks including headings
 	for _, block := range doc.Root.Children {
 		switch block.Type {
@@ -65,7 +65,7 @@ func (c *Converter) ToHTMLFromDoc(doc *parser.Document) string {
 			sb.WriteString(renderTableHTML(block))
 		}
 	}
-	
+
 	sb.WriteString("</article>\n")
 	return sb.String()
 }
@@ -73,7 +73,7 @@ func (c *Converter) ToHTMLFromDoc(doc *parser.Document) string {
 // ToPlainText converts Markdown to plain text.
 func (c *Converter) ToPlainText(doc *parser.Document) string {
 	var sb strings.Builder
-	
+
 	for _, block := range doc.Root.Children {
 		switch block.Type {
 		case parser.NodeHeading:
@@ -97,7 +97,7 @@ func (c *Converter) ToPlainText(doc *parser.Document) string {
 			sb.WriteString("\n")
 		}
 	}
-	
+
 	return sb.String()
 }
 
@@ -105,14 +105,14 @@ func (c *Converter) ToPlainText(doc *parser.Document) string {
 func renderTableHTML(table *parser.Node) string {
 	var sb strings.Builder
 	sb.WriteString("<table>\n")
-	
+
 	for i, row := range table.Children {
 		if i == 0 {
 			sb.WriteString("<thead>\n")
 		} else if i == 1 {
 			sb.WriteString("<tbody>\n")
 		}
-		
+
 		sb.WriteString("  <tr>\n")
 		for _, cell := range row.Children {
 			tag := "td"
@@ -123,12 +123,12 @@ func renderTableHTML(table *parser.Node) string {
 		}
 		sb.WriteString("  </tr>\n")
 	}
-	
+
 	if len(table.Children) > 0 {
 		sb.WriteString("</tbody>\n")
 	}
 	sb.WriteString("</table>\n")
-	
+
 	return sb.String()
 }
 

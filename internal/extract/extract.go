@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
-	
+
 	"github.com/EdgarOrtegaRamirez/markdownforge/internal/parser"
 )
 
@@ -35,7 +35,7 @@ func (e *Extractor) ExtractSection(headingText string) (string, bool) {
 	var lines []string
 	inSection := false
 	targetLevel := 0
-	
+
 	for _, block := range e.doc.Root.Children {
 		if block.Type == parser.NodeHeading && strings.Contains(block.Content, headingText) {
 			inSection = true
@@ -43,7 +43,7 @@ func (e *Extractor) ExtractSection(headingText string) (string, bool) {
 			lines = append(lines, fmt.Sprintf("%s %s", strings.Repeat("#", block.Level), block.Content))
 			continue
 		}
-		
+
 		if inSection {
 			if block.Type == parser.NodeHeading && block.Level <= targetLevel {
 				break
@@ -51,7 +51,7 @@ func (e *Extractor) ExtractSection(headingText string) (string, bool) {
 			lines = append(lines, block.Content)
 		}
 	}
-	
+
 	if len(lines) == 0 {
 		return "", false
 	}
@@ -75,14 +75,14 @@ func (e *Extractor) ExtractCodeBlocks(language string) []string {
 func (e *Extractor) ExtractLinks() []string {
 	var result []string
 	seen := make(map[string]bool)
-	
+
 	for _, link := range e.doc.Links {
 		if link.URL != "" && !seen[link.URL] {
 			seen[link.URL] = true
 			result = append(result, link.URL)
 		}
 	}
-	
+
 	return result
 }
 
@@ -90,14 +90,14 @@ func (e *Extractor) ExtractLinks() []string {
 func (e *Extractor) ExtractImages() []string {
 	var result []string
 	seen := make(map[string]bool)
-	
+
 	for _, img := range e.doc.Images {
 		if img.URL != "" && !seen[img.URL] {
 			seen[img.URL] = true
 			result = append(result, img.URL)
 		}
 	}
-	
+
 	return result
 }
 
@@ -107,7 +107,7 @@ func (e *Extractor) ExtractByRegex(pattern string) []string {
 	if err != nil {
 		return nil
 	}
-	
+
 	var result []string
 	for _, line := range e.doc.Lines {
 		matches := re.FindAllString(line, -1)
@@ -141,17 +141,17 @@ func (e *Extractor) ExtractTables() []string {
 // renderTable renders a table node as a string.
 func renderTable(table *parser.Node) string {
 	var sb strings.Builder
-	
+
 	for i, row := range table.Children {
 		var cells []string
 		for _, cell := range row.Children {
 			cells = append(cells, cell.Content)
 		}
-		
+
 		sb.WriteString("| ")
 		sb.WriteString(strings.Join(cells, " | "))
 		sb.WriteString(" |\n")
-		
+
 		if i == 0 {
 			// Add separator after header
 			seps := make([]string, len(cells))
@@ -163,14 +163,14 @@ func renderTable(table *parser.Node) string {
 			sb.WriteString(" |\n")
 		}
 	}
-	
+
 	return sb.String()
 }
 
 // ExtractMetadata extracts YAML-like metadata from the document.
 func (e *Extractor) ExtractMetadata() map[string]string {
 	result := make(map[string]string)
-	
+
 	// Look for metadata at the beginning of the document
 	end := 10
 	if end > len(e.doc.Lines) {
@@ -181,7 +181,7 @@ func (e *Extractor) ExtractMetadata() map[string]string {
 		if strings.HasPrefix(line, "---") {
 			continue
 		}
-		
+
 		parts := strings.SplitN(line, ":", 2)
 		if len(parts) == 2 {
 			key := strings.TrimSpace(parts[0])
@@ -191,6 +191,6 @@ func (e *Extractor) ExtractMetadata() map[string]string {
 			}
 		}
 	}
-	
+
 	return result
 }

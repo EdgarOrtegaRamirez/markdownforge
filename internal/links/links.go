@@ -10,17 +10,17 @@ import (
 	"strings"
 	"sync"
 	"time"
-	
+
 	"github.com/EdgarOrtegaRamirez/markdownforge/internal/parser"
 )
 
 // LinkStatus represents the status of a checked link.
 type LinkStatus struct {
-	URL      string
-	Valid    bool
+	URL        string
+	Valid      bool
 	StatusCode int
-	Error    string
-	Type     string // "external", "internal", "anchor"
+	Error      string
+	Type       string // "external", "internal", "anchor"
 }
 
 // Checker checks links in Markdown documents.
@@ -56,7 +56,7 @@ func NewChecker(baseDir string, timeout time.Duration, maxWorkers int) *Checker 
 // CheckAll checks all links in a document.
 func (c *Checker) CheckAll(doc *parser.Document) []*LinkStatus {
 	var links []string
-	
+
 	// Collect all links from the document
 	for _, link := range doc.Links {
 		if link.URL != "" {
@@ -68,7 +68,7 @@ func (c *Checker) CheckAll(doc *parser.Document) []*LinkStatus {
 			links = append(links, img.URL)
 		}
 	}
-	
+
 	// Deduplicate
 	seen := make(map[string]bool)
 	var unique []string
@@ -78,11 +78,11 @@ func (c *Checker) CheckAll(doc *parser.Document) []*LinkStatus {
 			unique = append(unique, l)
 		}
 	}
-	
+
 	// Check links concurrently
 	results := make([]*LinkStatus, len(unique))
 	jobs := make(chan int, len(unique))
-	
+
 	var wg sync.WaitGroup
 	for i := 0; i < c.maxWorkers; i++ {
 		wg.Add(1)
@@ -93,13 +93,13 @@ func (c *Checker) CheckAll(doc *parser.Document) []*LinkStatus {
 			}
 		}()
 	}
-	
+
 	for i := range unique {
 		jobs <- i
 	}
 	close(jobs)
 	wg.Wait()
-	
+
 	return results
 }
 
@@ -112,9 +112,9 @@ func (c *Checker) checkLink(rawURL string) *LinkStatus {
 		return cached
 	}
 	c.mu.RUnlock()
-	
+
 	status := &LinkStatus{URL: rawURL}
-	
+
 	// Determine link type
 	if strings.HasPrefix(rawURL, "#") {
 		status.Type = "anchor"
@@ -129,12 +129,12 @@ func (c *Checker) checkLink(rawURL string) *LinkStatus {
 		status.Type = "internal"
 		c.checkInternal(rawURL, status)
 	}
-	
+
 	// Cache result
 	c.mu.Lock()
 	c.cache[rawURL] = status
 	c.mu.Unlock()
-	
+
 	return status
 }
 
@@ -147,7 +147,7 @@ func (c *Checker) checkExternal(rawURL string, status *LinkStatus) {
 		return
 	}
 	defer resp.Body.Close()
-	
+
 	status.StatusCode = resp.StatusCode
 	status.Valid = resp.StatusCode >= 200 && resp.StatusCode < 400
 	if !status.Valid {
@@ -160,23 +160,23 @@ func (c *Checker) checkInternal(rawURL string, status *LinkStatus) {
 	// Split URL and anchor
 	parts := strings.SplitN(rawURL, "#", 2)
 	filePath := parts[0]
-	
+
 	if filePath == "" {
 		// Anchor-only link
 		status.Valid = true
 		return
 	}
-	
+
 	// Resolve path
- fullPath := filepath.Join(c.baseDir, filePath)
-	
+	fullPath := filepath.Join(c.baseDir, filePath)
+
 	// Check if file exists
 	if _, err := os.Stat(fullPath); os.IsNotExist(err) {
 		status.Valid = false
 		status.Error = "file not found"
 		return
 	}
-	
+
 	status.Valid = true
 }
 

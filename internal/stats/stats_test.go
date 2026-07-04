@@ -3,7 +3,7 @@ package stats
 import (
 	"strings"
 	"testing"
-	
+
 	"github.com/EdgarOrtegaRamirez/markdownforge/internal/parser"
 )
 
@@ -35,7 +35,7 @@ code example
 func TestAnalyze(t *testing.T) {
 	doc := parser.Parse(testDoc)
 	stats := Analyze(doc)
-	
+
 	if stats.WordCount == 0 {
 		t.Error("expected non-zero word count")
 	}
@@ -71,7 +71,7 @@ func TestAnalyze(t *testing.T) {
 func TestAnalyzeEmpty(t *testing.T) {
 	doc := parser.Parse("")
 	stats := Analyze(doc)
-	
+
 	if stats.WordCount != 0 {
 		t.Errorf("expected 0 words, got %d", stats.WordCount)
 	}
@@ -83,7 +83,7 @@ func TestAnalyzeEmpty(t *testing.T) {
 func TestRenderText(t *testing.T) {
 	doc := parser.Parse(testDoc)
 	stats := Analyze(doc)
-	
+
 	text := stats.RenderText()
 	if text == "" {
 		t.Error("expected non-empty text output")
@@ -96,7 +96,7 @@ func TestRenderText(t *testing.T) {
 func TestRenderJSON(t *testing.T) {
 	doc := parser.Parse(testDoc)
 	stats := Analyze(doc)
-	
+
 	json := stats.RenderJSON()
 	if json == "" {
 		t.Error("expected non-empty JSON output")
@@ -109,7 +109,7 @@ func TestRenderJSON(t *testing.T) {
 func TestRenderMarkdown(t *testing.T) {
 	doc := parser.Parse(testDoc)
 	stats := Analyze(doc)
-	
+
 	md := stats.RenderMarkdown()
 	if md == "" {
 		t.Error("expected non-empty markdown output")
@@ -125,7 +125,7 @@ func TestFormatDuration(t *testing.T) {
 	}{
 		{"< 1 min"},
 	}
-	
+
 	for _, tt := range tests {
 		if tt.input == "" {
 			t.Error("expected non-empty")

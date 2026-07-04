@@ -4,7 +4,7 @@ package lint
 import (
 	"fmt"
 	"strings"
-	
+
 	"github.com/EdgarOrtegaRamirez/markdownforge/internal/parser"
 )
 
@@ -106,7 +106,7 @@ func (l *Linter) Lint(doc *parser.Document) []Issue {
 func checkHeadingLevels(doc *parser.Document) []Issue {
 	var issues []Issue
 	var prevLevel int
-	
+
 	for _, h := range doc.Headings {
 		if prevLevel > 0 && h.Level > prevLevel+1 {
 			issues = append(issues, Issue{
@@ -118,7 +118,7 @@ func checkHeadingLevels(doc *parser.Document) []Issue {
 		}
 		prevLevel = h.Level
 	}
-	
+
 	return issues
 }
 
@@ -142,7 +142,7 @@ func checkTrailingSpace(doc *parser.Document) []Issue {
 func checkMultipleBlanks(doc *parser.Document) []Issue {
 	var issues []Issue
 	blankCount := 0
-	
+
 	for i, line := range doc.Lines {
 		if strings.TrimSpace(line) == "" {
 			blankCount++
@@ -158,7 +158,7 @@ func checkMultipleBlanks(doc *parser.Document) []Issue {
 			blankCount = 0
 		}
 	}
-	
+
 	return issues
 }
 
@@ -166,7 +166,7 @@ func checkMultipleBlanks(doc *parser.Document) []Issue {
 func checkHeadingPunctuation(doc *parser.Document) []Issue {
 	var issues []Issue
 	punctuation := []string{".", ",", ";", ":", "!", "?"}
-	
+
 	for _, h := range doc.Headings {
 		for _, p := range punctuation {
 			if strings.HasSuffix(h.Content, p) {
@@ -180,7 +180,7 @@ func checkHeadingPunctuation(doc *parser.Document) []Issue {
 			}
 		}
 	}
-	
+
 	return issues
 }
 

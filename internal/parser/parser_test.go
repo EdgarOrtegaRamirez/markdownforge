@@ -13,11 +13,11 @@ func TestParseHeadings(t *testing.T) {
 ###### Deepest
 `
 	doc := Parse(source)
-	
+
 	if len(doc.Headings) != 6 {
 		t.Fatalf("expected 6 headings, got %d", len(doc.Headings))
 	}
-	
+
 	expected := []struct {
 		level int
 		text  string
@@ -29,7 +29,7 @@ func TestParseHeadings(t *testing.T) {
 		{5, "Deep"},
 		{6, "Deepest"},
 	}
-	
+
 	for i, exp := range expected {
 		if doc.Headings[i].Level != exp.level {
 			t.Errorf("heading %d: expected level %d, got %d", i, exp.level, doc.Headings[i].Level)
@@ -48,14 +48,14 @@ Second paragraph.
 Third paragraph.
 `
 	doc := Parse(source)
-	
+
 	paragraphs := 0
 	for _, block := range doc.Blocks {
 		if block.Type == NodeParagraph {
 			paragraphs++
 		}
 	}
-	
+
 	if paragraphs != 3 {
 		t.Errorf("expected 3 paragraphs, got %d", paragraphs)
 	}
@@ -64,11 +64,11 @@ Third paragraph.
 func TestParseFencedCode(t *testing.T) {
 	source := "```go\npackage main\n\nfunc main() {}\n```"
 	doc := Parse(source)
-	
+
 	if len(doc.Blocks) != 1 {
 		t.Fatalf("expected 1 block, got %d", len(doc.Blocks))
 	}
-	
+
 	block := doc.Blocks[0]
 	if block.Type != NodeFencedCode {
 		t.Errorf("expected fenced code, got %s", block.Type)
@@ -84,11 +84,11 @@ func TestParseFencedCode(t *testing.T) {
 func TestParseIndentedCode(t *testing.T) {
 	source := "    code line 1\n    code line 2\n    code line 3"
 	doc := Parse(source)
-	
+
 	if len(doc.Blocks) != 1 {
 		t.Fatalf("expected 1 block, got %d", len(doc.Blocks))
 	}
-	
+
 	block := doc.Blocks[0]
 	if block.Type != NodeCodeBlock {
 		t.Errorf("expected code block, got %s", block.Type)
@@ -101,11 +101,11 @@ func TestParseIndentedCode(t *testing.T) {
 func TestParseBlockquote(t *testing.T) {
 	source := "> This is a quote\n> With multiple lines\n> And more"
 	doc := Parse(source)
-	
+
 	if len(doc.Blocks) != 1 {
 		t.Fatalf("expected 1 block, got %d", len(doc.Blocks))
 	}
-	
+
 	block := doc.Blocks[0]
 	if block.Type != NodeBlockquote {
 		t.Errorf("expected blockquote, got %s", block.Type)
@@ -118,11 +118,11 @@ func TestParseTable(t *testing.T) {
 | Alice | 30 |
 | Bob | 25 |`
 	doc := Parse(source)
-	
+
 	if len(doc.Blocks) != 1 {
 		t.Fatalf("expected 1 block, got %d", len(doc.Blocks))
 	}
-	
+
 	block := doc.Blocks[0]
 	if block.Type != NodeTable {
 		t.Errorf("expected table, got %s", block.Type)
@@ -139,14 +139,14 @@ func TestParseHorizontalRule(t *testing.T) {
 
 ___`
 	doc := Parse(source)
-	
+
 	rules := 0
 	for _, block := range doc.Blocks {
 		if block.Type == NodeHorizontalRule {
 			rules++
 		}
 	}
-	
+
 	if rules != 3 {
 		t.Errorf("expected 3 horizontal rules, got %d", rules)
 	}
@@ -157,11 +157,11 @@ func TestParseList(t *testing.T) {
 - Item 2
 - Item 3`
 	doc := Parse(source)
-	
+
 	if len(doc.Blocks) != 1 {
 		t.Fatalf("expected 1 block, got %d", len(doc.Blocks))
 	}
-	
+
 	block := doc.Blocks[0]
 	if block.Type != NodeList {
 		t.Errorf("expected list, got %s", block.Type)
@@ -187,7 +187,7 @@ func TestIsHorizontalRule(t *testing.T) {
 		{"-- some text --", false},
 		{"not a rule", false},
 	}
-	
+
 	for _, tt := range tests {
 		got := isHorizontalRule(tt.input)
 		if got != tt.want {
@@ -209,7 +209,7 @@ func TestIsListStart(t *testing.T) {
 		{"not a list", false},
 		{"-no space", false},
 	}
-	
+
 	for _, tt := range tests {
 		got := isListStart(tt.input)
 		if got != tt.want {
@@ -243,7 +243,7 @@ code here
 > A quote
 `
 	doc := Parse(source)
-	
+
 	if len(doc.Headings) != 1 {
 		t.Errorf("expected 1 heading, got %d", len(doc.Headings))
 	}
@@ -277,7 +277,7 @@ func TestNodeTypeString(t *testing.T) {
 		{NodeCode, "code"},
 		{NodeText, "text"},
 	}
-	
+
 	for _, tt := range tests {
 		got := tt.nodeType.String()
 		if got != tt.expected {

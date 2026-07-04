@@ -6,10 +6,10 @@ import (
 	"os"
 	"strings"
 	"time"
-	
+
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
-	
+
 	"github.com/EdgarOrtegaRamirez/markdownforge/internal/badge"
 	"github.com/EdgarOrtegaRamirez/markdownforge/internal/convert"
 	"github.com/EdgarOrtegaRamirez/markdownforge/internal/extract"
@@ -32,7 +32,7 @@ func main() {
 		Short: "A comprehensive Markdown processing toolkit",
 		Long:  `MarkdownForge provides tools for processing, analyzing, and converting Markdown documents.`,
 	}
-	
+
 	// Add commands
 	rootCmd.AddCommand(
 		newTOCCmd(),
@@ -44,7 +44,7 @@ func main() {
 		newBadgeCmd(),
 		newVersionCmd(),
 	)
-	
+
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}
@@ -58,7 +58,7 @@ func readInput(args []string) (string, error) {
 		}
 		return string(data), nil
 	}
-	
+
 	// Read from stdin
 	info, _ := os.Stdin.Stat()
 	if (info.Mode() & os.ModeCharDevice) == 0 {
@@ -75,7 +75,7 @@ func readInput(args []string) (string, error) {
 		}
 		return sb.String(), nil
 	}
-	
+
 	return "", fmt.Errorf("no input provided")
 }
 
@@ -88,7 +88,7 @@ func newTOCCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			
+
 			doc := parser.Parse(source)
 			t := toc.Generate(doc)
 			output := toc.RenderMarkdown(t, 0)
@@ -109,10 +109,10 @@ func newStatsCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			
+
 			doc := parser.Parse(source)
 			s := stats.Analyze(doc)
-			
+
 			switch format {
 			case "json":
 				fmt.Print(s.RenderJSON())
@@ -137,18 +137,18 @@ func newLintCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			
+
 			doc := parser.Parse(source)
 			l := lint.NewLinter()
 			issues := l.Lint(doc)
-			
+
 			if len(issues) == 0 {
 				color.Green("✓ No issues found")
 				return nil
 			}
-			
+
 			errors, warnings, infos := lint.Summary(issues)
-			
+
 			for _, issue := range issues {
 				var prefix string
 				switch issue.Severity {
@@ -161,7 +161,7 @@ func newLintCmd() *cobra.Command {
 				}
 				fmt.Printf("%d:%d %s [%s] %s\n", issue.Line, issue.Column, prefix, issue.Rule, issue.Message)
 			}
-			
+
 			fmt.Printf("\n%d errors, %d warnings, %d info\n", errors, warnings, infos)
 			return nil
 		},
@@ -179,18 +179,18 @@ func newLinksCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			
+
 			doc := parser.Parse(source)
 			dir := "."
 			if len(args) > 0 {
 				dir = args[0]
 			}
-			
+
 			checker := links.NewChecker(dir, timeout, 10)
 			results := checker.CheckAll(doc)
-			
+
 			valid, invalid, errors := links.Summary(results)
-			
+
 			for _, r := range results {
 				if r.Valid {
 					color.Green("✓ %s", r.URL)
@@ -198,7 +198,7 @@ func newLinksCmd() *cobra.Command {
 					color.Red("✗ %s: %s", r.URL, r.Error)
 				}
 			}
-			
+
 			fmt.Printf("\n%d valid, %d invalid\n", valid, invalid)
 			if len(errors) > 0 {
 				fmt.Println("\nErrors:")
@@ -215,10 +215,10 @@ func newLinksCmd() *cobra.Command {
 
 func newExtractCmd() *cobra.Command {
 	var (
-		level      int
-		lang       string
-		section    string
-		regex      string
+		level   int
+		lang    string
+		section string
+		regex   string
 	)
 	cmd := &cobra.Command{
 		Use:   "extract [file]",
@@ -228,10 +228,10 @@ func newExtractCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			
+
 			doc := parser.Parse(source)
 			e := extract.NewExtractor(doc)
-			
+
 			if section != "" {
 				content, found := e.ExtractSection(section)
 				if !found {
@@ -240,7 +240,7 @@ func newExtractCmd() *cobra.Command {
 				fmt.Print(content)
 				return nil
 			}
-			
+
 			if lang != "" {
 				blocks := e.ExtractCodeBlocks(lang)
 				for _, block := range blocks {
@@ -249,7 +249,7 @@ func newExtractCmd() *cobra.Command {
 				}
 				return nil
 			}
-			
+
 			if level > 0 {
 				headings := e.ExtractHeadings(level)
 				for _, h := range headings {
@@ -257,7 +257,7 @@ func newExtractCmd() *cobra.Command {
 				}
 				return nil
 			}
-			
+
 			if regex != "" {
 				results := e.ExtractByRegex(regex)
 				for _, r := range results {
@@ -265,7 +265,7 @@ func newExtractCmd() *cobra.Command {
 				}
 				return nil
 			}
-			
+
 			// Default: extract all
 			fmt.Println("=== Links ===")
 			for _, link := range e.ExtractLinks() {
@@ -295,10 +295,10 @@ func newConvertCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			
+
 			doc := parser.Parse(source)
 			c := convert.NewConverter()
-			
+
 			switch format {
 			case "html":
 				html, err := c.ToHTML(source)
@@ -327,7 +327,7 @@ func newBadgeCmd() *cobra.Command {
 			license, _ := cmd.Flags().GetString("license")
 			lang, _ := cmd.Flags().GetString("language")
 			tests, _ := cmd.Flags().GetString("tests")
-			
+
 			bs := badge.GenerateProjectBadges(name, license, lang)
 			if tests != "" {
 				sb := badge.GenerateStatusBadges(tests, "", "")
@@ -335,7 +335,7 @@ func newBadgeCmd() *cobra.Command {
 					bs.Add(b)
 				}
 			}
-			
+
 			fmt.Println(bs.Markdown())
 			return nil
 		},

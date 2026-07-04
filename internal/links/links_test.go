@@ -1,9 +1,9 @@
 package links
 
 import (
-	"testing"
 	"os"
 	"path/filepath"
+	"testing"
 )
 
 func TestValidateURL(t *testing.T) {
@@ -19,7 +19,7 @@ func TestValidateURL(t *testing.T) {
 		{"", false},
 		{"://invalid", false},
 	}
-	
+
 	for _, tt := range tests {
 		err := ValidateURL(tt.input)
 		if (err == nil) != tt.valid {
@@ -33,16 +33,16 @@ func TestCheckInternal(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "README.md")
 	os.WriteFile(testFile, []byte("# Test"), 0644)
-	
+
 	checker := NewChecker(tmpDir, 0, 1)
-	
+
 	// Test existing file
 	status := &LinkStatus{}
 	checker.checkInternal("README.md", status)
 	if !status.Valid {
 		t.Errorf("expected valid for existing file, got error: %s", status.Error)
 	}
-	
+
 	// Test non-existing file
 	status = &LinkStatus{}
 	checker.checkInternal("nonexistent.md", status)
@@ -54,7 +54,7 @@ func TestCheckInternal(t *testing.T) {
 func TestCheckInternalAnchor(t *testing.T) {
 	tmpDir := t.TempDir()
 	checker := NewChecker(tmpDir, 0, 1)
-	
+
 	status := &LinkStatus{}
 	checker.checkInternal("#section", status)
 	if !status.Valid {
@@ -69,9 +69,9 @@ func TestSummary(t *testing.T) {
 		{URL: "https://also-valid.com", Valid: true},
 		{URL: "https://also-broken.com", Valid: false, Error: "Connection refused"},
 	}
-	
+
 	valid, invalid, errors := Summary(results)
-	
+
 	if valid != 2 {
 		t.Errorf("expected 2 valid, got %d", valid)
 	}

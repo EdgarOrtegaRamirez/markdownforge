@@ -7,7 +7,7 @@ import (
 
 func TestBadgeURL(t *testing.T) {
 	b := NewBadge("build", "passing", ColorBrightGreen)
-	
+
 	url := b.URL()
 	if !strings.Contains(url, "img.shields.io") {
 		t.Errorf("expected shields.io URL, got: %s", url)
@@ -22,7 +22,7 @@ func TestBadgeURL(t *testing.T) {
 
 func TestBadgeMarkdown(t *testing.T) {
 	b := NewBadge("status", "active", ColorGreen)
-	
+
 	md := b.Markdown()
 	if !strings.HasPrefix(md, "![status](") {
 		t.Errorf("expected markdown badge, got: %s", md)
@@ -34,7 +34,7 @@ func TestBadgeMarkdown(t *testing.T) {
 
 func TestBadgeHTML(t *testing.T) {
 	b := NewBadge("version", "1.0", ColorBlue)
-	
+
 	html := b.HTML()
 	if !strings.HasPrefix(html, "<img src=") {
 		t.Errorf("expected HTML img tag, got: %s", html)
@@ -45,7 +45,7 @@ func TestBadgeSet(t *testing.T) {
 	bs := NewBadgeSet()
 	bs.Add(NewBadge("a", "1", ColorRed))
 	bs.Add(NewBadge("b", "2", ColorBlue))
-	
+
 	md := bs.Markdown()
 	if !strings.Contains(md, "![a](") {
 		t.Error("expected badge a in markdown")
@@ -53,7 +53,7 @@ func TestBadgeSet(t *testing.T) {
 	if !strings.Contains(md, "![b](") {
 		t.Error("expected badge b in markdown")
 	}
-	
+
 	html := bs.HTML()
 	if !strings.Contains(html, "<img") {
 		t.Error("expected img tags in HTML")
@@ -62,7 +62,7 @@ func TestBadgeSet(t *testing.T) {
 
 func TestGenerateProjectBadges(t *testing.T) {
 	bs := GenerateProjectBadges("MyProject", "MIT", "Go")
-	
+
 	if len(bs.Badges) != 3 {
 		t.Errorf("expected 3 badges, got %d", len(bs.Badges))
 	}
@@ -70,7 +70,7 @@ func TestGenerateProjectBadges(t *testing.T) {
 
 func TestGenerateStatusBadges(t *testing.T) {
 	bs := GenerateStatusBadges("passing", "passing", "85%")
-	
+
 	if len(bs.Badges) != 3 {
 		t.Errorf("expected 3 badges, got %d", len(bs.Badges))
 	}
@@ -78,7 +78,7 @@ func TestGenerateStatusBadges(t *testing.T) {
 
 func TestBadgeSpecialChars(t *testing.T) {
 	b := NewBadge("my-badge", "value_with_under", ColorOrange)
-	
+
 	url := b.URL()
 	// Should handle special characters
 	if url == "" {

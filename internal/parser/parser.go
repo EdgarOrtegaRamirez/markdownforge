@@ -38,15 +38,15 @@ const (
 // Node represents a node in the Markdown AST.
 type Node struct {
 	Type     NodeType
-	Level    int      // For headings (1-6)
-	Content  string   // Text content
-	Language string   // For fenced code blocks
-	URL      string   // For links and images
-	Title    string   // For links and images
-	Alt      string   // For images
-	Children []*Node  // Child nodes
-	Parent   *Node    // Parent node
-	Line     int      // Line number in source
+	Level    int               // For headings (1-6)
+	Content  string            // Text content
+	Language string            // For fenced code blocks
+	URL      string            // For links and images
+	Title    string            // For links and images
+	Alt      string            // For images
+	Children []*Node           // Child nodes
+	Parent   *Node             // Parent node
+	Line     int               // Line number in source
 	Attrs    map[string]string // For tables
 }
 
@@ -66,19 +66,19 @@ func Parse(source string) *Document {
 		Root:  &Node{Type: NodeDocument},
 		Lines: strings.Split(source, "\n"),
 	}
-	
+
 	parser := &blockParser{
 		source: source,
 		lines:  doc.Lines,
 		doc:    doc,
 		pos:    0,
 	}
-	
+
 	parser.parseBlocks(doc.Root)
-	
+
 	// Collect nodes by type
 	collectNodes(doc.Root, doc)
-	
+
 	return doc
 }
 
@@ -108,7 +108,7 @@ func collectNodes(root *Node, doc *Document) {
 // parseInline extracts inline elements (links, images) from text content.
 func parseInline(node *Node, doc *Document) {
 	content := node.Content
-	
+
 	// Extract images: ![alt](url "title")
 	imgRegex := regexp.MustCompile(`!\[([^\]]*)\]\(([^)\s]+)(?:\s+"([^"]*)")?\)`)
 	for _, match := range imgRegex.FindAllStringSubmatch(content, -1) {
@@ -125,7 +125,7 @@ func parseInline(node *Node, doc *Document) {
 		doc.Images = append(doc.Images, img)
 		node.Children = append(node.Children, img)
 	}
-	
+
 	// Extract links: [text](url "title")
 	linkRegex := regexp.MustCompile(`\[([^\]]+)\]\(([^)\s]+)(?:\s+"([^"]*)")?\)`)
 	for _, match := range linkRegex.FindAllStringSubmatch(content, -1) {
@@ -156,13 +156,13 @@ func (p *blockParser) parseBlocks(parent *Node) {
 	for p.pos < len(p.lines) {
 		line := p.lines[p.pos]
 		trimmed := strings.TrimSpace(line)
-		
+
 		// Empty line
 		if trimmed == "" {
 			p.pos++
 			continue
 		}
-		
+
 		// Heading
 		if level, text := parseHeading(line); level > 0 {
 			node := &Node{
@@ -175,7 +175,7 @@ func (p *blockParser) parseBlocks(parent *Node) {
 			p.pos++
 			continue
 		}
-		
+
 		// Horizontal rule
 		if isHorizontalRule(trimmed) {
 			node := &Node{
@@ -186,7 +186,7 @@ func (p *blockParser) parseBlocks(parent *Node) {
 			p.pos++
 			continue
 		}
-		
+
 		// Fenced code block
 		if strings.HasPrefix(trimmed, "```") || strings.HasPrefix(trimmed, "~~~") {
 			node := p.parseFencedCode()
@@ -195,7 +195,7 @@ func (p *blockParser) parseBlocks(parent *Node) {
 			}
 			continue
 		}
-		
+
 		// Indented code block
 		if strings.HasPrefix(line, "    ") || strings.HasPrefix(line, "\t") {
 			node := p.parseIndentedCode()
@@ -204,7 +204,7 @@ func (p *blockParser) parseBlocks(parent *Node) {
 			}
 			continue
 		}
-		
+
 		// Blockquote
 		if strings.HasPrefix(trimmed, ">") {
 			node := p.parseBlockquote()
@@ -213,7 +213,7 @@ func (p *blockParser) parseBlocks(parent *Node) {
 			}
 			continue
 		}
-		
+
 		// Table
 		if isTableStart(p.lines, p.pos) {
 			node := p.parseTable()
@@ -222,7 +222,7 @@ func (p *blockParser) parseBlocks(parent *Node) {
 			}
 			continue
 		}
-		
+
 		// List
 		if isListStart(trimmed) {
 			node := p.parseList()
@@ -231,9 +231,9 @@ func (p *blockParser) parseBlocks(parent *Node) {
 			}
 			continue
 		}
-		
+
 		// HTML block
-		if strings.HasPrefix(trimmed, "<") && (strings.HasSuffix(trimmed, ">") || 
+		if strings.HasPrefix(trimmed, "<") && (strings.HasSuffix(trimmed, ">") ||
 			strings.Contains(trimmed, "</")) {
 			node := &Node{
 				Type:    NodeHTML,
@@ -244,7 +244,7 @@ func (p *blockParser) parseBlocks(parent *Node) {
 			p.pos++
 			continue
 		}
-		
+
 		// Paragraph
 		node := p.parseParagraph()
 		if node != nil {
@@ -301,13 +301,13 @@ func (p *blockParser) parseFencedCode() *Node {
 		fence = "~~~"
 	}
 	lang := strings.TrimSpace(line[len(fence):])
-	
+
 	node := &Node{
 		Type:     NodeFencedCode,
 		Language: lang,
 		Line:     p.pos + 1,
 	}
-	
+
 	p.pos++
 	var content []string
 	for p.pos < len(p.lines) {
@@ -319,7 +319,7 @@ func (p *blockParser) parseFencedCode() *Node {
 		content = append(content, p.lines[p.pos])
 		p.pos++
 	}
-	
+
 	node.Content = strings.Join(content, "\n")
 	return node
 }
@@ -330,7 +330,7 @@ func (p *blockParser) parseIndentedCode() *Node {
 		Type: NodeCodeBlock,
 		Line: p.pos + 1,
 	}
-	
+
 	var content []string
 	for p.pos < len(p.lines) {
 		line := p.lines[p.pos]
@@ -341,7 +341,7 @@ func (p *blockParser) parseIndentedCode() *Node {
 			break
 		}
 	}
-	
+
 	node.Content = strings.Join(content, "\n")
 	return node
 }
@@ -352,7 +352,7 @@ func (p *blockParser) parseBlockquote() *Node {
 		Type: NodeBlockquote,
 		Line: p.pos + 1,
 	}
-	
+
 	var content []string
 	for p.pos < len(p.lines) {
 		line := strings.TrimSpace(p.lines[p.pos])
@@ -365,7 +365,7 @@ func (p *blockParser) parseBlockquote() *Node {
 			break
 		}
 	}
-	
+
 	node.Content = strings.Join(content, "\n")
 	return node
 }
@@ -394,7 +394,7 @@ func (p *blockParser) parseTable() *Node {
 		Type: NodeTable,
 		Line: p.pos + 1,
 	}
-	
+
 	// Parse header
 	headerLine := strings.TrimSpace(p.lines[p.pos])
 	cells := splitTableRow(headerLine)
@@ -407,19 +407,19 @@ func (p *blockParser) parseTable() *Node {
 	}
 	node.Children = append(node.Children, headerRow)
 	p.pos++
-	
+
 	// Skip separator
 	if p.pos < len(p.lines) {
 		p.pos++
 	}
-	
+
 	// Parse body rows
 	for p.pos < len(p.lines) {
 		line := strings.TrimSpace(p.lines[p.pos])
 		if !strings.Contains(line, "|") || line == "" {
 			break
 		}
-		
+
 		row := &Node{Type: NodeTableRow}
 		cells := splitTableRow(line)
 		for _, cell := range cells {
@@ -431,7 +431,7 @@ func (p *blockParser) parseTable() *Node {
 		node.Children = append(node.Children, row)
 		p.pos++
 	}
-	
+
 	return node
 }
 
@@ -468,7 +468,7 @@ func (p *blockParser) parseList() *Node {
 		Type: NodeList,
 		Line: p.pos + 1,
 	}
-	
+
 	for p.pos < len(p.lines) {
 		line := strings.TrimSpace(p.lines[p.pos])
 		if !isListStart(line) && line != "" {
@@ -478,12 +478,12 @@ func (p *blockParser) parseList() *Node {
 			p.pos++
 			continue
 		}
-		
+
 		item := &Node{
 			Type: NodeListItem,
 			Line: p.pos + 1,
 		}
-		
+
 		// Extract list marker and text
 		if line[0] == '-' || line[0] == '*' || line[0] == '+' {
 			item.Content = strings.TrimSpace(line[2:])
@@ -496,11 +496,11 @@ func (p *blockParser) parseList() *Node {
 				}
 			}
 		}
-		
+
 		node.Children = append(node.Children, item)
 		p.pos++
 	}
-	
+
 	return node
 }
 
@@ -510,7 +510,7 @@ func (p *blockParser) parseParagraph() *Node {
 		Type: NodeParagraph,
 		Line: p.pos + 1,
 	}
-	
+
 	var lines []string
 	for p.pos < len(p.lines) {
 		line := strings.TrimSpace(p.lines[p.pos])
@@ -535,7 +535,7 @@ func (p *blockParser) parseParagraph() *Node {
 		lines = append(lines, line)
 		p.pos++
 	}
-	
+
 	node.Content = strings.Join(lines, " ")
 	return node
 }
