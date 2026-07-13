@@ -16,6 +16,7 @@ import (
 	"github.com/EdgarOrtegaRamirez/markdownforge/internal/links"
 	"github.com/EdgarOrtegaRamirez/markdownforge/internal/lint"
 	"github.com/EdgarOrtegaRamirez/markdownforge/internal/parser"
+	"github.com/EdgarOrtegaRamirez/markdownforge/internal/spellcheck"
 	"github.com/EdgarOrtegaRamirez/markdownforge/internal/stats"
 	"github.com/EdgarOrtegaRamirez/markdownforge/internal/toc"
 )
@@ -42,6 +43,7 @@ func main() {
 		newExtractCmd(),
 		newConvertCmd(),
 		newBadgeCmd(),
+		newSpellcheckCmd(),
 		newVersionCmd(),
 	)
 
@@ -355,4 +357,60 @@ func newVersionCmd() *cobra.Command {
 			fmt.Printf("markdownforge %s (commit: %s, built: %s)\n", version, commit, buildDate)
 		},
 	}
+}
+
+func newSpellcheckCmd() *cobra.Command {
+	var jsonOutput bool
+	cmd := &cobra.Command{
+		Use:   "spellcheck [file]",
+		Short: "Check spelling in Markdown document",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			source, err := readInput(args)
+			if err != nil {
+				return err
+			}
+
+			doc := parser.Parse(source)
+			checker := spellcheck.NewChecker()
+			issues := checker.Check(doc)
+
+			if len(issues) == 0 {
+				color.Green("✓ No spelling issues found")
+				return nil
+			}
+
+			if jsonOutput {
+				fmt.Println(formatJSON(issues))
+				return nil
+			}
+
+			for _, issue := range issues {
+				fmt.Printf("%d: %s → %s\n", issue.Line, issue.Word, issue.Suggestion)
+			}
+
+			fmt.Printf("\n%d possible misspelling(s) found\n", len(issues))
+			return nil
+		},
+	}
+	cmd.Flags().BoolVarP(&jsonOutput, "json", "j", false, "Output as JSON")
+	return cmd
+}
+
+func formatJSON(issues []spellcheck.Issue) string {
+	type jsonIssue struct {
+		Line       int    `json:"line"`
+		Word       string `json:"word"`
+		Suggestion string `json:"suggestion"`
+		Message    string `json:"message"`
+	}
+	out := "["
+	for i, issue := range issues {
+		if i > 0 {
+			out += ","
+		}
+		out += fmt.Sprintf(`{"line":%d,"word":"%s","suggestion":"%s","message":"%s"}`,
+			issue.Line, issue.Word, issue.Suggestion, issue.Message)
+	}
+	out += "]"
+	return out
 }
