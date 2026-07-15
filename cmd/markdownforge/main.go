@@ -138,10 +138,10 @@ func newLintCmd() *cobra.Command {
 		allowEmptyAlt  bool
 	)
 	cmd := &cobra.Command{
-		Use:   "lint [file]",
-		Short: "Lint Markdown document with 13 rules, A-F scoring, and multiple output formats",
-		Long: `Analyze a Markdown file for common issues using 13 built-in linting rules.
-Produces a quality score (0-100) with A-F letter grade.
+		Use:   "lint [file...]",
+		Short: "Lint Markdown document(s) with 13 rules, A-F scoring, and multiple output formats",
+		Long: `Analyze one or more Markdown files for common issues using 13 built-in linting rules.
+Produces a quality score (0-100) with A-F letter grade per file.
 
 Rules:
   🔴 empty-link-text        Links with empty text
@@ -161,38 +161,66 @@ Examples:
   markdownforge lint README.md
   markdownforge lint --format json --max-line-length 100 docs/*.md
   markdownforge lint --github --no-heading-order .
+  markdownforge lint file1.md file2.md file3.md
   cat page.md | markdownforge lint -
 `,
-		Args: cobra.MaximumNArgs(1),
+		Args: cobra.MinimumNArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			source, err := readInput(args)
-			if err != nil {
-				return err
-			}
-
 			cfg := lint.NewDefaultConfig()
 			cfg.MaxLineLength = maxLineLength
 			cfg.RequireHeadingOrder = !noHeadingOrder
 			cfg.AllowEmptyAlt = allowEmptyAlt
 
-			doc := parser.Parse(source)
-			l := lint.New(cfg)
+			var allIssues []lint.Issue
 
-			// Set raw lines for line-based checks
-			lines := strings.Split(source, "\n")
-			l.SetRawLines(lines)
+			// Handle single file or stdin
+			if len(args) == 0 || (len(args) == 1 && args[0] == "-") {
+				var source string
 
-			issues := l.Lint(doc)
+				if len(args) > 0 && args[0] != "-" {
+					data, err := os.ReadFile(args[0])
+					if err != nil {
+						return fmt.Errorf("reading file: %w", err)
+					}
+					source = string(data)
+				} else {
+					// Read from stdin
+					var sb strings.Builder
+					buf := make([]byte, 1024)
+					for {
+						n, err := os.Stdin.Read(buf)
+						if n > 0 {
+							sb.Write(buf[:n])
+						}
+						if err != nil {
+							break
+						}
+					}
+					source = sb.String()
+				}
 
-			score := lint.CalculateScore(issues)
-			grade := lint.ScoreToGrade(score)
+				issues := runLint(source, cfg)
+				allIssues = append(allIssues, issues...)
+			} else {
+				// Multiple files
+				for _, file := range args {
+					data, err := os.ReadFile(file)
+					if err != nil {
+						fmt.Fprintf(os.Stderr, "Error reading %s: %v\n", file, err)
+						continue
+					}
+					issues := runLint(string(data), cfg)
+					allIssues = append(allIssues, issues...)
+				}
+			}
 
+			// Output
 			if format == "json" {
-				printJSONReport(issues, score, grade, len(lines))
+				printJSONReportMulti(allIssues)
 				return nil
 			}
 			if format == "github" {
-				printGitHubReport(issues)
+				printGitHubReportMulti(allIssues)
 				return nil
 			}
 
@@ -200,8 +228,8 @@ Examples:
 			fmt.Println()
 			fmt.Printf("═══ lint report ═══\n\n")
 
-			if len(issues) == 0 {
-				color.Green("  ✅ No issues found! Score: %s (%.1f/100)", lint.GradeSymbol(grade), score)
+			if len(allIssues) == 0 {
+				color.Green("  ✅ No issues found! Score: %s (100.0/100)", lint.GradeSymbol(lint.ScoreToGrade(100.0)))
 				return nil
 			}
 
@@ -217,9 +245,8 @@ Examples:
 					sevLabel = "Info"
 				}
 
-				// Count actual issues of this severity
 				var actualCount int
-				for _, issue := range issues {
+				for _, issue := range allIssues {
 					if issue.Severity == sev {
 						actualCount++
 					}
@@ -240,7 +267,7 @@ Examples:
 
 				fmt.Printf("  %s %d %s\n", prefix, actualCount, sevLabel)
 
-				for _, issue := range issues {
+				for _, issue := range allIssues {
 					if issue.Severity != sev {
 						continue
 					}
@@ -256,10 +283,18 @@ Examples:
 				fmt.Println()
 			}
 
+			score := lint.CalculateScore(allIssues)
+			grade := lint.ScoreToGrade(score)
 			fmt.Println("  ──────────────────────")
 			fmt.Printf("  Score: %s (%.1f/100)\n", lint.GradeSymbol(grade), score)
-			fmt.Printf("  Lines: %d | Issues: %d\n\n", len(lines), len(issues))
+			fmt.Printf("  Issues: %d\n\n", len(allIssues))
 
+			// Exit code: 1 if critical issues
+			for _, issue := range allIssues {
+				if issue.Severity == lint.SeverityCritical || issue.Severity == lint.SeverityError {
+					os.Exit(1)
+				}
+			}
 			return nil
 		},
 	}
@@ -268,6 +303,15 @@ Examples:
 	cmd.Flags().BoolVar(&noHeadingOrder, "no-heading-order", false, "Disable heading level order check")
 	cmd.Flags().BoolVar(&allowEmptyAlt, "allow-empty-alt", false, "Allow images without alt text")
 	return cmd
+}
+
+// runLint runs the linter on a single file's content and returns issues.
+func runLint(source string, cfg lint.LintConfig) []lint.Issue {
+	doc := parser.Parse(source)
+	l := lint.New(cfg)
+	lines := strings.Split(source, "\n")
+	l.SetRawLines(lines)
+	return l.Lint(doc)
 }
 
 func newLinksCmd() *cobra.Command {
