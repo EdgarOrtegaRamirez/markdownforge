@@ -69,7 +69,7 @@ func (c *Checker) AddDefaultRules() {
 		"contians":       "contains",
 		"continous":      "continuous",
 		"contructor":     "constructor",
-		"corisponding":    "corresponding",
+		"corisponding":   "corresponding",
 		"corupted":       "corrupted",
 		"coustomer":      "customer",
 		"develope":       "develop",

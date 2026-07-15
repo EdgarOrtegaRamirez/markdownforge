@@ -40,9 +40,9 @@ type Rule struct {
 
 // LintConfig holds configuration for the linter.
 type LintConfig struct {
-	MaxLineLength     int    // 0 = unlimited
+	MaxLineLength       int  // 0 = unlimited
 	RequireHeadingOrder bool // enforce sequential heading levels
-	AllowEmptyAlt     bool   // allow images without alt text
+	AllowEmptyAlt       bool // allow images without alt text
 }
 
 // NewDefaultConfig returns default lint configuration.
@@ -56,8 +56,8 @@ func NewDefaultConfig() LintConfig {
 
 // Linter checks Markdown documents for issues.
 type Linter struct {
-	rules   []Rule
-	cfg     LintConfig
+	rules    []Rule
+	cfg      LintConfig
 	rawLines []string
 }
 
@@ -86,7 +86,7 @@ func (l *Linter) AddRule(rule Rule) {
 // AddDefaultRules adds the default set of lint rules.
 func (l *Linter) AddDefaultRules() {
 	l.rules = append(l.rules,
-	// Heading rules
+		// Heading rules
 		Rule{
 			Name:        "heading-level",
 			Description: "Headings should not skip levels (e.g., h1 to h3)",

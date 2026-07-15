@@ -26,7 +26,7 @@ func printJSONReport(issues []lint.Issue, score float64, grade string, totalLine
 	}
 
 	out := struct {
-		TotalLines int       `json:"total_lines"`
+		TotalLines int        `json:"total_lines"`
 		Issues     []IssueOut `json:"issues"`
 		Stats      StatsOut   `json:"stats"`
 		Score      float64    `json:"score"`

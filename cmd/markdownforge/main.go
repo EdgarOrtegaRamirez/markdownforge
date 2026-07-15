@@ -132,10 +132,10 @@ func newStatsCmd() *cobra.Command {
 
 func newLintCmd() *cobra.Command {
 	var (
-		format          string
-		maxLineLength   int
-		noHeadingOrder  bool
-		allowEmptyAlt   bool
+		format         string
+		maxLineLength  int
+		noHeadingOrder bool
+		allowEmptyAlt  bool
 	)
 	cmd := &cobra.Command{
 		Use:   "lint [file]",
