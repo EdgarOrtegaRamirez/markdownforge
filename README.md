@@ -102,19 +102,62 @@ Reading Time:   6 mins
 
 ### `lint` - Markdown Linting
 
-Check for common Markdown issues.
+Analyze one or more Markdown files for common issues using 13 built-in linting rules. Produces a quality score (0-100) with A-F letter grade.
+
+**Merged from [marklint](https://github.com/EdgarOrtegaRamirez/marklint)** — now with multi-file support, A-F scoring, and CI annotations.
 
 ```bash
-markdownforge lint document.md
+# Lint a single file
+markdownforge lint README.md
+
+# Lint multiple files
+markdownforge lint docs/*.md
+
+# JSON output for CI/CD pipelines
+markdownforge lint --format json README.md
+
+# GitHub Actions annotation format
+markdownforge lint --github .
+
+# Pipe from stdin
+cat page.md | markdownforge lint -
+
+# Custom config
+markdownforge lint --max-line-length 100 --no-heading-order docs/*.md
 ```
 
-Rules:
-- `heading-level` - Warns when heading levels skip (e.g., h1 to h3)
-- `trailing-space` - Info about trailing whitespace
-- `multiple-blanks` - Info about multiple consecutive blank lines
-- `heading-punctuation` - Warns when headings end with punctuation
-- `first-line-heading` - Info when document doesn't start with a heading
-- `no-empty-links` - Warns about links with empty text
+**Rules:**
+
+| Rule | Severity | Description |
+|------|----------|-------------|
+| `empty-link-text` | 🔴 Critical | Links with no text content: `[]()` |
+| `image-broken-syntax` | 🔴 Critical | Images with unclosed parenthesis: `![alt](url` |
+| `heading-level` | ⚠️ Warning | Non-sequential heading levels |
+| `heading-skip` | ⚠️ Warning | Heading level jumps (e.g., H1→H4) |
+| `empty-image-alt` | ⚠️ Warning | Images without alt text |
+| `alt-text-too-long` | ⚠️ Warning | Image alt text > 150 chars |
+| `line-too-long` | ⚠️ Warning | Lines exceeding max length (default 120) |
+| `heading-punctuation` | ⚠️ Warning | Headings ending with punctuation |
+| `no-empty-links` | ⚠️ Warning | Empty link text (parser-based) |
+| `trailing-space` | ℹ️ Info | Trailing whitespace |
+| `multiple-blanks` | ℹ️ Info | Multiple consecutive blank lines |
+| `first-line-heading` | ℹ️ Info | Document does not start with a heading |
+
+**Score Breakdown:**
+
+| Score | Grade |
+|-------|-------|
+| 90–100 | A 🌟 |
+| 80–89 | B ✅ |
+| 70–79 | C 👍 |
+| 60–69 | D ⚠️ |
+| 0–59 | F ❌ |
+
+| Issues | Penalty |
+|--------|---------|
+| Critical | -15 each |
+| Warning | -5 each |
+| Info | -1 each |
 
 ### `links` - Link Checking
 
