@@ -131,43 +131,142 @@ func newStatsCmd() *cobra.Command {
 }
 
 func newLintCmd() *cobra.Command {
+	var (
+		format          string
+		maxLineLength   int
+		noHeadingOrder  bool
+		allowEmptyAlt   bool
+	)
 	cmd := &cobra.Command{
 		Use:   "lint [file]",
-		Short: "Lint Markdown document",
+		Short: "Lint Markdown document with 13 rules, A-F scoring, and multiple output formats",
+		Long: `Analyze a Markdown file for common issues using 13 built-in linting rules.
+Produces a quality score (0-100) with A-F letter grade.
+
+Rules:
+  🔴 empty-link-text        Links with empty text
+  🔴 image-broken-syntax    Broken image syntax (missing closing paren)
+  ⚠️  heading-level         Non-sequential heading levels
+  ⚠️  heading-skip          Heading level jumps (e.g., H1 to H4)
+  ⚠️  empty-image-alt       Images without alt text
+  ⚠️  alt-text-too-long     Image alt text > 150 chars
+  ⚠️  line-too-long         Lines exceeding max length
+  ⚠️  heading-punctuation   Headings ending with punctuation
+  ⚠️  no-empty-links        Empty link text (parser-based)
+  ℹ️  trailing-space        Trailing whitespace
+  ℹ️  multiple-blanks       Multiple consecutive blank lines
+  ℹ️  first-line-heading    Document does not start with a heading
+
+Examples:
+  markdownforge lint README.md
+  markdownforge lint --format json --max-line-length 100 docs/*.md
+  markdownforge lint --github --no-heading-order .
+  cat page.md | markdownforge lint -
+`,
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			source, err := readInput(args)
 			if err != nil {
 				return err
 			}
 
+			cfg := lint.NewDefaultConfig()
+			cfg.MaxLineLength = maxLineLength
+			cfg.RequireHeadingOrder = !noHeadingOrder
+			cfg.AllowEmptyAlt = allowEmptyAlt
+
 			doc := parser.Parse(source)
-			l := lint.NewLinter()
+			l := lint.New(cfg)
+
+			// Set raw lines for line-based checks
+			lines := strings.Split(source, "\n")
+			l.SetRawLines(lines)
+
 			issues := l.Lint(doc)
 
-			if len(issues) == 0 {
-				color.Green("✓ No issues found")
+			score := lint.CalculateScore(issues)
+			grade := lint.ScoreToGrade(score)
+
+			if format == "json" {
+				printJSONReport(issues, score, grade, len(lines))
+				return nil
+			}
+			if format == "github" {
+				printGitHubReport(issues)
 				return nil
 			}
 
-			errors, warnings, infos := lint.Summary(issues)
+			// Text output
+			fmt.Println()
+			fmt.Printf("═══ lint report ═══\n\n")
 
-			for _, issue := range issues {
-				var prefix string
-				switch issue.Severity {
-				case lint.SeverityError:
-					prefix = color.New(color.FgRed).Sprint("error")
-				case lint.SeverityWarning:
-					prefix = color.New(color.FgYellow).Sprint("warning")
-				case lint.SeverityInfo:
-					prefix = color.New(color.FgCyan).Sprint("info")
-				}
-				fmt.Printf("%d:%d %s [%s] %s\n", issue.Line, issue.Column, prefix, issue.Rule, issue.Message)
+			if len(issues) == 0 {
+				color.Green("  ✅ No issues found! Score: %s (%.1f/100)", lint.GradeSymbol(grade), score)
+				return nil
 			}
 
-			fmt.Printf("\n%d errors, %d warnings, %d info\n", errors, warnings, infos)
+			// Group by severity
+			for _, sev := range []lint.Severity{lint.SeverityCritical, lint.SeverityError, lint.SeverityWarning, lint.SeverityInfo} {
+				var sevLabel string
+				switch sev {
+				case lint.SeverityCritical, lint.SeverityError:
+					sevLabel = "Critical Issues"
+				case lint.SeverityWarning:
+					sevLabel = "Warnings"
+				case lint.SeverityInfo:
+					sevLabel = "Info"
+				}
+
+				// Count actual issues of this severity
+				var actualCount int
+				for _, issue := range issues {
+					if issue.Severity == sev {
+						actualCount++
+					}
+				}
+				if actualCount == 0 {
+					continue
+				}
+
+				prefix := "⚠️ "
+				switch sev {
+				case lint.SeverityCritical, lint.SeverityError:
+					prefix = "🔴 "
+				case lint.SeverityWarning:
+					prefix = "⚠️ "
+				case lint.SeverityInfo:
+					prefix = "ℹ️ "
+				}
+
+				fmt.Printf("  %s %d %s\n", prefix, actualCount, sevLabel)
+
+				for _, issue := range issues {
+					if issue.Severity != sev {
+						continue
+					}
+					fmt.Printf("    Line %d: %s [%s]\n", issue.Line, issue.Message, issue.Rule)
+					if issue.Context != "" {
+						ctx := issue.Context
+						if len(ctx) > 80 {
+							ctx = ctx[:80] + "..."
+						}
+						fmt.Printf("      → %s\n", ctx)
+					}
+				}
+				fmt.Println()
+			}
+
+			fmt.Println("  ──────────────────────")
+			fmt.Printf("  Score: %s (%.1f/100)\n", lint.GradeSymbol(grade), score)
+			fmt.Printf("  Lines: %d | Issues: %d\n\n", len(lines), len(issues))
+
 			return nil
 		},
 	}
+	cmd.Flags().StringVarP(&format, "format", "f", "text", "Output format: text, json, github")
+	cmd.Flags().IntVar(&maxLineLength, "max-line-length", 120, "Maximum line length (0 = unlimited)")
+	cmd.Flags().BoolVar(&noHeadingOrder, "no-heading-order", false, "Disable heading level order check")
+	cmd.Flags().BoolVar(&allowEmptyAlt, "allow-empty-alt", false, "Allow images without alt text")
 	return cmd
 }
 

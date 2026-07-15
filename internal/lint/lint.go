@@ -3,6 +3,7 @@ package lint
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/EdgarOrtegaRamirez/markdownforge/internal/parser"
@@ -12,9 +13,10 @@ import (
 type Severity string
 
 const (
-	SeverityError   Severity = "error"
-	SeverityWarning Severity = "warning"
-	SeverityInfo    Severity = "info"
+	SeverityCritical Severity = "critical"
+	SeverityError    Severity = "error"
+	SeverityWarning  Severity = "warning"
+	SeverityInfo     Severity = "info"
 )
 
 // Issue represents a lint issue found in the document.
@@ -24,6 +26,8 @@ type Issue struct {
 	Severity Severity
 	Rule     string
 	Message  string
+	Context  string
+	Category string
 }
 
 // Rule represents a lint rule.
@@ -31,19 +35,47 @@ type Rule struct {
 	Name        string
 	Description string
 	Severity    Severity
-	Check       func(doc *parser.Document) []Issue
+	Check       func(doc *parser.Document, rawLines []string, cfg LintConfig) []Issue
+}
+
+// LintConfig holds configuration for the linter.
+type LintConfig struct {
+	MaxLineLength     int    // 0 = unlimited
+	RequireHeadingOrder bool // enforce sequential heading levels
+	AllowEmptyAlt     bool   // allow images without alt text
+}
+
+// NewDefaultConfig returns default lint configuration.
+func NewDefaultConfig() LintConfig {
+	return LintConfig{
+		MaxLineLength:       120,
+		RequireHeadingOrder: true,
+		AllowEmptyAlt:       false,
+	}
 }
 
 // Linter checks Markdown documents for issues.
 type Linter struct {
-	rules []Rule
+	rules   []Rule
+	cfg     LintConfig
+	rawLines []string
 }
 
-// NewLinter creates a new linter with default rules.
-func NewLinter() *Linter {
-	l := &Linter{}
+// New creates a linter with the given config.
+func New(cfg LintConfig) *Linter {
+	l := &Linter{cfg: cfg}
 	l.AddDefaultRules()
 	return l
+}
+
+// NewLinter creates a new linter with default config (for backward compat).
+func NewLinter() *Linter {
+	return New(NewDefaultConfig())
+}
+
+// SetRawLines sets the raw lines for line-based checks.
+func (l *Linter) SetRawLines(lines []string) {
+	l.rawLines = lines
 }
 
 // AddRule adds a custom lint rule.
@@ -54,12 +86,51 @@ func (l *Linter) AddRule(rule Rule) {
 // AddDefaultRules adds the default set of lint rules.
 func (l *Linter) AddDefaultRules() {
 	l.rules = append(l.rules,
+	// Heading rules
 		Rule{
 			Name:        "heading-level",
 			Description: "Headings should not skip levels (e.g., h1 to h3)",
 			Severity:    SeverityWarning,
 			Check:       checkHeadingLevels,
 		},
+		Rule{
+			Name:        "heading-skip",
+			Description: "Sequential heading levels without skips",
+			Severity:    SeverityWarning,
+			Check:       checkHeadingSkip,
+		},
+		// Link/image rules
+		Rule{
+			Name:        "empty-link-text",
+			Description: "Links should not have empty text",
+			Severity:    SeverityCritical,
+			Check:       checkEmptyLinkText,
+		},
+		Rule{
+			Name:        "no-empty-links",
+			Description: "Links should not have empty text (parser-based)",
+			Severity:    SeverityWarning,
+			Check:       checkEmptyLinks,
+		},
+		Rule{
+			Name:        "image-broken-syntax",
+			Description: "Images must have valid syntax with closing parenthesis",
+			Severity:    SeverityCritical,
+			Check:       checkBrokenImageSyntax,
+		},
+		Rule{
+			Name:        "empty-image-alt",
+			Description: "Images should have descriptive alt text",
+			Severity:    SeverityWarning,
+			Check:       checkEmptyImages,
+		},
+		Rule{
+			Name:        "alt-text-too-long",
+			Description: "Image alt text should be under 150 characters",
+			Severity:    SeverityWarning,
+			Check:       checkAltTextLength,
+		},
+		// Spacing rules
 		Rule{
 			Name:        "trailing-space",
 			Description: "Lines should not have trailing whitespace",
@@ -73,6 +144,13 @@ func (l *Linter) AddDefaultRules() {
 			Check:       checkMultipleBlanks,
 		},
 		Rule{
+			Name:        "line-too-long",
+			Description: "Lines should not exceed maximum length",
+			Severity:    SeverityWarning,
+			Check:       checkLongLines,
+		},
+		// Structure rules
+		Rule{
 			Name:        "heading-punctuation",
 			Description: "Headings should not end with punctuation",
 			Severity:    SeverityWarning,
@@ -84,12 +162,6 @@ func (l *Linter) AddDefaultRules() {
 			Severity:    SeverityInfo,
 			Check:       checkFirstLineHeading,
 		},
-		Rule{
-			Name:        "no-empty-links",
-			Description: "Links should not have empty text",
-			Severity:    SeverityWarning,
-			Check:       checkEmptyLinks,
-		},
 	)
 }
 
@@ -97,13 +169,14 @@ func (l *Linter) AddDefaultRules() {
 func (l *Linter) Lint(doc *parser.Document) []Issue {
 	var issues []Issue
 	for _, rule := range l.rules {
-		issues = append(issues, rule.Check(doc)...)
+		issues = append(issues, rule.Check(doc, l.rawLines, l.cfg)...)
 	}
 	return issues
 }
 
-// checkHeadingLevels checks for skipped heading levels.
-func checkHeadingLevels(doc *parser.Document) []Issue {
+// === Heading rules ===
+
+func checkHeadingLevels(doc *parser.Document, _ []string, _ LintConfig) []Issue {
 	var issues []Issue
 	var prevLevel int
 
@@ -114,32 +187,183 @@ func checkHeadingLevels(doc *parser.Document) []Issue {
 				Severity: SeverityWarning,
 				Rule:     "heading-level",
 				Message:  fmt.Sprintf("Heading level jumps from h%d to h%d", prevLevel, h.Level),
+				Category: "heading",
 			})
 		}
 		prevLevel = h.Level
 	}
-
 	return issues
 }
 
-// checkTrailingSpace checks for trailing whitespace.
-func checkTrailingSpace(doc *parser.Document) []Issue {
+func checkHeadingSkip(doc *parser.Document, rawLines []string, cfg LintConfig) []Issue {
+	if !cfg.RequireHeadingOrder {
+		return nil
+	}
 	var issues []Issue
-	for i, line := range doc.Lines {
+	var headingStack []int
+
+	for i, line := range rawLines {
+		trimmed := strings.TrimSpace(line)
+		// Skip code blocks
+		if strings.HasPrefix(trimmed, "```") {
+			continue
+		}
+		headingMatch := regexp.MustCompile(`^(#{1,6})\s+(.*)`).FindStringSubmatch(trimmed)
+		if headingMatch != nil {
+			level := len(headingMatch[1])
+			if len(headingStack) > 0 {
+				lastLevel := headingStack[len(headingStack)-1]
+				if level > lastLevel+1 {
+					issues = append(issues, Issue{
+						Line:     i + 1,
+						Severity: SeverityWarning,
+						Rule:     "heading-skip",
+						Message:  fmt.Sprintf("Heading level jumps from H%d to H%d — consider adding H%d", lastLevel, level, lastLevel+1),
+						Category: "heading",
+					})
+				}
+			}
+			headingStack = append(headingStack, level)
+		}
+	}
+	return issues
+}
+
+// === Link/Image rules ===
+
+func checkEmptyLinkText(doc *parser.Document, rawLines []string, cfg LintConfig) []Issue {
+	var issues []Issue
+	for i, line := range rawLines {
+		trimmed := strings.TrimSpace(line)
+		// Skip code blocks
+		if strings.HasPrefix(trimmed, "```") {
+			continue
+		}
+		// Check for empty link text: []()
+		matches := regexp.MustCompile(`\[([^\]]*)\]\(`).FindAllStringSubmatch(trimmed, -1)
+		for _, m := range matches {
+			if strings.TrimSpace(m[1]) == "" {
+				issues = append(issues, Issue{
+					Line:     i + 1,
+					Severity: SeverityCritical,
+					Rule:     "empty-link-text",
+					Message:  "Link has empty text — add descriptive link text",
+					Category: "link",
+				})
+			}
+		}
+	}
+	return issues
+}
+
+func checkEmptyLinks(doc *parser.Document, _ []string, _ LintConfig) []Issue {
+	var issues []Issue
+	for _, link := range doc.Links {
+		if link.Content == "" {
+			issues = append(issues, Issue{
+				Line:     link.Line,
+				Severity: SeverityWarning,
+				Rule:     "no-empty-links",
+				Message:  "Link has empty text",
+				Category: "link",
+			})
+		}
+	}
+	return issues
+}
+
+func checkBrokenImageSyntax(doc *parser.Document, rawLines []string, cfg LintConfig) []Issue {
+	var issues []Issue
+	for i, line := range rawLines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "```") {
+			continue
+		}
+		// Check for broken image: has ![...]( but no closing )
+		if regexp.MustCompile(`!\[[^\]]*\]\(`).MatchString(trimmed) {
+			if !regexp.MustCompile(`!\[[^\]]*\]\([^)]*\)$`).MatchString(trimmed) {
+				issues = append(issues, Issue{
+					Line:     i + 1,
+					Severity: SeverityCritical,
+					Rule:     "image-broken-syntax",
+					Message:  "Image syntax is broken — missing closing parenthesis",
+					Category: "image",
+				})
+			}
+		}
+	}
+	return issues
+}
+
+func checkEmptyImages(doc *parser.Document, rawLines []string, cfg LintConfig) []Issue {
+	if cfg.AllowEmptyAlt {
+		return nil
+	}
+	var issues []Issue
+	for i, line := range rawLines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "```") {
+			continue
+		}
+		if regexp.MustCompile(`!\[\]\([^)]+\)`).MatchString(trimmed) {
+			issues = append(issues, Issue{
+				Line:     i + 1,
+				Severity: SeverityWarning,
+				Rule:     "empty-image-alt",
+				Message:  "Image has empty alt text — consider adding descriptive alt text or using decorative marker",
+				Category: "image",
+			})
+		}
+	}
+	return issues
+}
+
+func checkAltTextLength(doc *parser.Document, rawLines []string, cfg LintConfig) []Issue {
+	if cfg.AllowEmptyAlt {
+		return nil
+	}
+	var issues []Issue
+	for i, line := range rawLines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "```") {
+			continue
+		}
+		m := regexp.MustCompile(`!\[([^\]]*)\]\(`).FindStringSubmatch(trimmed)
+		if m != nil {
+			alt := m[1]
+			if len(alt) > 150 {
+				issues = append(issues, Issue{
+					Line:     i + 1,
+					Severity: SeverityWarning,
+					Rule:     "alt-text-too-long",
+					Message:  fmt.Sprintf("Image alt text is %d characters — consider shortening or moving to caption", len(alt)),
+					Category: "image",
+				})
+			}
+		}
+	}
+	return issues
+}
+
+// === Spacing rules ===
+
+func checkTrailingSpace(doc *parser.Document, rawLines []string, cfg LintConfig) []Issue {
+	var issues []Issue
+	for i, line := range rawLines {
 		if strings.TrimRight(line, " \t") != line && strings.TrimSpace(line) != "" {
 			issues = append(issues, Issue{
 				Line:     i + 1,
 				Severity: SeverityInfo,
 				Rule:     "trailing-space",
 				Message:  "Line has trailing whitespace",
+				Category: "spacing",
 			})
 		}
 	}
 	return issues
 }
 
-// checkMultipleBlanks checks for multiple consecutive blank lines.
-func checkMultipleBlanks(doc *parser.Document) []Issue {
+func checkMultipleBlanks(doc *parser.Document, _ []string, _ LintConfig) []Issue {
 	var issues []Issue
 	blankCount := 0
 
@@ -152,18 +376,38 @@ func checkMultipleBlanks(doc *parser.Document) []Issue {
 					Severity: SeverityInfo,
 					Rule:     "multiple-blanks",
 					Message:  "Multiple consecutive blank lines",
+					Category: "spacing",
 				})
 			}
 		} else {
 			blankCount = 0
 		}
 	}
-
 	return issues
 }
 
-// checkHeadingPunctuation checks if headings end with punctuation.
-func checkHeadingPunctuation(doc *parser.Document) []Issue {
+func checkLongLines(doc *parser.Document, rawLines []string, cfg LintConfig) []Issue {
+	if cfg.MaxLineLength == 0 {
+		return nil
+	}
+	var issues []Issue
+	for i, line := range rawLines {
+		if len(line) > cfg.MaxLineLength {
+			issues = append(issues, Issue{
+				Line:     i + 1,
+				Severity: SeverityWarning,
+				Rule:     "line-too-long",
+				Message:  fmt.Sprintf("Line is %d characters (max %d)", len(line), cfg.MaxLineLength),
+				Category: "spacing",
+			})
+		}
+	}
+	return issues
+}
+
+// === Structure rules ===
+
+func checkHeadingPunctuation(doc *parser.Document, _ []string, _ LintConfig) []Issue {
 	var issues []Issue
 	punctuation := []string{".", ",", ";", ":", "!", "?"}
 
@@ -175,17 +419,16 @@ func checkHeadingPunctuation(doc *parser.Document) []Issue {
 					Severity: SeverityWarning,
 					Rule:     "heading-punctuation",
 					Message:  fmt.Sprintf("Heading ends with '%s'", p),
+					Category: "heading",
 				})
 				break
 			}
 		}
 	}
-
 	return issues
 }
 
-// checkFirstLineHeading checks if the document starts with a heading.
-func checkFirstLineHeading(doc *parser.Document) []Issue {
+func checkFirstLineHeading(doc *parser.Document, _ []string, _ LintConfig) []Issue {
 	var issues []Issue
 	if len(doc.Headings) == 0 || doc.Headings[0].Line != 1 {
 		issues = append(issues, Issue{
@@ -193,32 +436,79 @@ func checkFirstLineHeading(doc *parser.Document) []Issue {
 			Severity: SeverityInfo,
 			Rule:     "first-line-heading",
 			Message:  "Document does not start with a heading",
+			Category: "structure",
 		})
 	}
 	return issues
 }
 
-// checkEmptyLinks checks for links with empty text.
-func checkEmptyLinks(doc *parser.Document) []Issue {
-	var issues []Issue
-	for _, link := range doc.Links {
-		if link.Content == "" {
-			issues = append(issues, Issue{
-				Line:     link.Line,
-				Severity: SeverityWarning,
-				Rule:     "no-empty-links",
-				Message:  "Link has empty text",
-			})
+// === Scoring ===
+
+// CalculateScore computes a 0-100 quality score based on issues.
+func CalculateScore(issues []Issue) float64 {
+	if len(issues) == 0 {
+		return 100.0
+	}
+
+	criticalPenalty := 15.0
+	warningPenalty := 5.0
+	infoPenalty := 1.0
+
+	penalty := 0.0
+	for _, issue := range issues {
+		switch issue.Severity {
+		case SeverityCritical, SeverityError:
+			penalty += criticalPenalty
+		case SeverityWarning:
+			penalty += warningPenalty
+		case SeverityInfo:
+			penalty += infoPenalty
 		}
 	}
-	return issues
+
+	score := 100.0 - penalty
+	if score < 0 {
+		score = 0
+	}
+	return float64(int(score*10)) / 10
+}
+
+// ScoreToGrade converts a score to a letter grade.
+func ScoreToGrade(score float64) string {
+	switch {
+	case score >= 90:
+		return "A"
+	case score >= 80:
+		return "B"
+	case score >= 70:
+		return "C"
+	case score >= 60:
+		return "D"
+	default:
+		return "F"
+	}
+}
+
+// GradeSymbol returns a visual symbol for the grade.
+func GradeSymbol(grade string) string {
+	symbols := map[string]string{
+		"A": "🌟",
+		"B": "✅",
+		"C": "👍",
+		"D": "⚠️",
+		"F": "❌",
+	}
+	if s, ok := symbols[grade]; ok {
+		return s + " " + grade
+	}
+	return grade
 }
 
 // Summary returns a summary of lint issues.
 func Summary(issues []Issue) (errors, warnings, infos int) {
 	for _, issue := range issues {
 		switch issue.Severity {
-		case SeverityError:
+		case SeverityCritical, SeverityError:
 			errors++
 		case SeverityWarning:
 			warnings++

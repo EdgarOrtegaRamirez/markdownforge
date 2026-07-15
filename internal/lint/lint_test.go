@@ -30,6 +30,7 @@ func TestLintTrailingSpace(t *testing.T) {
 	source := "Line with trailing   \nGood line\n"
 	doc := parser.Parse(source)
 	linter := NewLinter()
+	linter.SetRawLines(doc.Lines)
 	issues := linter.Lint(doc)
 
 	found := false
@@ -48,6 +49,7 @@ func TestLintMultipleBlanks(t *testing.T) {
 	source := "Line 1\n\n\n\nLine 2\n"
 	doc := parser.Parse(source)
 	linter := NewLinter()
+	linter.SetRawLines(doc.Lines)
 	issues := linter.Lint(doc)
 
 	found := false
@@ -130,7 +132,7 @@ func TestCustomRule(t *testing.T) {
 		Name:        "test-rule",
 		Description: "Test rule",
 		Severity:    SeverityInfo,
-		Check: func(doc *parser.Document) []Issue {
+		Check: func(doc *parser.Document, _ []string, _ LintConfig) []Issue {
 			return []Issue{{Message: "custom issue", Rule: "test-rule"}}
 		},
 	})
